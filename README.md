@@ -8,6 +8,10 @@ live traffic.
 never hand-pick a driver in the normal flow. The matching engine is the only allocator; humans only
 load people into the system, approve ad-hoc requests, and override in emergencies.
 
+**Live API:** https://eventride-api-production.up.railway.app — open it, the landing page shows the
+live database state. Admin `admin@event.test` / `admin123`; guest and driver sign in with any seeded
+phone and OTP `000000`.
+
 Docs: [PRD](docs/PRD.md) · [HLD](docs/HLD.md) · [LLD](docs/LLD.md) · **[Matching design](docs/DESIGN-matching.md)** · [Traceability](docs/TRACEABILITY.md) · **[Deploy](docs/DEPLOY.md)**
 
 ---
