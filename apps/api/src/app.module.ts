@@ -13,6 +13,7 @@ import { DriverController } from './http/driver.controller.js'
 import { AdminController } from './http/admin.controller.js'
 import { HealthController } from './http/health.controller.js'
 import { PushController } from './http/push.controller.js'
+import { LandingController } from './http/landing.controller.js'
 import { AuthGuard, RolesGuard } from './http/guards.js'
 import { PrismaRepositories } from './prisma/prisma-repos.js'
 import { TripService } from './trips/trip.service.js'
@@ -61,6 +62,7 @@ class RedisCacheStore implements CacheStore {
     AdminController,
     PushController,
     HealthController,
+    LandingController,
   ],
   providers: [
     { provide: PrismaClient, useFactory: () => new PrismaClient() },

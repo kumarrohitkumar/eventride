@@ -58,4 +58,7 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=4 \
 
 # The Prisma CLI is invoked through its binary rather than a package manager, so the runtime needs
 # neither pnpm nor a corepack download. `migrate deploy` never generates or resets a migration.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node dist/main.cjs"]
+# SEED_ON_BOOT exists because a managed database is typically reachable only from inside the
+# platform's network, so `prisma db seed` from a laptop cannot connect. Set it once, deploy, then
+# turn it off — the seed is destructive (it clears the event's data before inserting).
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && { [ \"$SEED_ON_BOOT\" = \"true\" ] && node dist/seed.cjs || true; } && exec node dist/main.cjs"]

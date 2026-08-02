@@ -5,7 +5,6 @@
     "dockerfilePath": "apps/api/Dockerfile"
   },
   "deploy": {
-    "startCommand": "pnpm exec prisma migrate deploy && pnpm exec tsx src/main.ts",
     "healthcheckPath": "/ready",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",

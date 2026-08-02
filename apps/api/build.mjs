@@ -48,6 +48,7 @@ const sources = [
   'src/http/admin.controller.ts',
   'src/http/health.controller.ts',
   'src/http/push.controller.ts',
+  'src/http/landing.controller.ts',
   'src/auth/auth.controller.ts',
   'src/dispatch/dispatch.service.ts',
   'src/dispatch/sweeper.service.ts',
@@ -67,6 +68,26 @@ for (const file of sources) {
     }
   }
 }
+
+const shared = {
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'cjs',
+  sourcemap: true,
+  packages: 'external',
+  plugins: [bundleWorkspacePackages],
+  tsconfig: resolve(here, 'tsconfig.json'),
+  logLevel: 'info',
+}
+
+// The seed is bundled as well: a managed database is usually reachable only from inside the
+// platform's private network, so seeding has to run in the container rather than from a laptop.
+await build({
+  ...shared,
+  entryPoints: [resolve(here, 'prisma/seed.ts')],
+  outfile: resolve(here, 'dist/seed.cjs'),
+})
 
 await build({
   entryPoints: [resolve(here, 'src/main.ts')],
