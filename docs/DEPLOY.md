@@ -7,17 +7,13 @@ is only needed if you want a clickable link, which is what the web build is for.
 
 ---
 
-## 0. Push to GitHub first
+## 0. Current state
 
-Nothing is pushed yet. From the repo root:
-
-```bash
-# Create an EMPTY public repo on github.com (no README, no .gitignore), then:
-git remote add origin https://github.com/<your-username>/eventride.git
-git push -u origin main
-```
-
-That alone satisfies the assignment's submission requirement. Everything below is optional polish.
+| | |
+|---|---|
+| Repo | https://github.com/kumarrohitkumar/eventride |
+| API | **live** — https://eventride-api-production.up.railway.app |
+| Apps | web preview pending one setting (§2 Option B); APK on demand (§2 Option C) |
 
 ---
 
@@ -137,12 +133,29 @@ for a reviewer.
 - `prisma migrate deploy` runs on container start
 - with `NODE_ENV=production` and `DEV_OTP_ENABLED=false`, the dev OTP is no longer returned
 
-**Not verified:**
+**Verified on the live Railway deployment:**
 
-- no cloud deployment has actually been performed — the steps above are written from the Dockerfile's
-  requirements, not from a completed Railway/Fly run
-- no load test against a hosted instance
+- all three migrations applied against Railway's MySQL 9.4, including the hand-written
+  generated-column and AUTO_INCREMENT ones
+- `/health`, `/ready` (database **and** Redis), `/metrics` all serving
+- admin credential login and driver OTP login both work
+- RBAC holds in production: a driver token on an admin route returns 403
+
+**Still not verified:**
+
+- no load test against the hosted instance
 - multi-instance: the Redis round lock and Socket.IO adapter are designed for it and untested
+- push delivery, background location and OS permission dialogs — these need an APK on a real phone
+  (§2 Option C)
+
+**Two things the deployment taught us, worth knowing before repeating it:**
+
+1. `railway.json`'s `startCommand` **overrides the Dockerfile CMD**. Ours still said
+   `pnpm exec tsx …` after the runtime image had deliberately dropped pnpm and tsx, so the container
+   died instantly with zero log output — which looks exactly like a resource limit and is not.
+2. A managed database is usually reachable only from inside the platform network, so `railway run`
+   (which executes locally) cannot seed it. Hence the bundled `dist/seed.cjs` and the `SEED_ON_BOOT`
+   flag — set it once, then turn it off, because the seed clears data.
 
 ---
 
