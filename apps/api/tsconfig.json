@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@eventride/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@eventride/engine": [
+        "../../packages/engine/src/index.ts"
+      ],
+      "@eventride/routing": [
+        "../../packages/routing/src/index.ts"
+      ]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

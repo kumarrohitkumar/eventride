@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@eventride/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@eventride/engine": [
+        "../../packages/engine/src/index.ts"
+      ],
+      "@eventride/routing": [
+        "../../packages/routing/src/index.ts"
+      ]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

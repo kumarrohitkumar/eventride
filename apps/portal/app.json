@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "EventRide Portal",
+    "slug": "eventride-portal",
+    "scheme": "eventride-portal",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "EventRide shares your location with ops only while you are on a trip." }]
+    ],
+    "extra": { "apiBaseUrl": "http://localhost:3000" },
+    "ios": { "supportsTablet": true },
+    "android": { "package": "com.eventride.portal" }
+  }
+}

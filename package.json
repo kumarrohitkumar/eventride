@@ -1,0 +1,44 @@
+{
+  "name": "eventride",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Event fleet dispatch system \u2014 automated driver/guest matching for large private events",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:engine": "vitest run packages/engine",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "typecheck": "pnpm -r exec tsc --noEmit",
+    "sim:peak": "pnpm --filter @eventride/sim peak",
+    "api:dev": "pnpm --filter @eventride/api dev",
+    "guest": "pnpm --filter @eventride/guest start",
+    "portal": "pnpm --filter @eventride/portal start",
+    "bundle:check": "pnpm --filter @eventride/guest exec expo export --platform web --output-dir .expo-check && pnpm --filter @eventride/portal exec expo export --platform web --output-dir .expo-check",
+    "db:migrate": "pnpm --filter @eventride/api prisma migrate dev",
+    "db:push": "pnpm --filter @eventride/api prisma db push",
+    "db:seed": "pnpm --filter @eventride/api seed",
+    "db:reset": "pnpm --filter @eventride/api prisma migrate reset --force"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "fast-check": "^3.23.1",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}

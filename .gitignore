@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.expo/
+.env
+.env.local
+*.log
+coverage/
+.DS_Store
+apps/api/prisma/migrations/dev.db*
+.expo-check/
+
+# Prisma generated client output
+apps/api/generated/

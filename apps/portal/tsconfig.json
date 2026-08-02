@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["react", "node"],
+    "noEmit": true,
+    "paths": {
+      "@eventride/shared": ["../../packages/shared/src/index.ts"],
+      "@eventride/ui": ["../../packages/ui/src/index.tsx"],
+      "@eventride/api-client": ["../../packages/api-client/src/index.ts"]
+    }
+  },
+  "include": ["app/**/*", "src/**/*"]
+}

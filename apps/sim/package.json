@@ -1,0 +1,19 @@
+{
+  "name": "@eventride/sim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "peak": "tsx src/cli.ts peak",
+    "quiet": "tsx src/cli.ts quiet",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@eventride/engine": "workspace:*",
+    "@eventride/routing": "workspace:*",
+    "@eventride/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

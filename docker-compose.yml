@@ -1,0 +1,26 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventride
+    # UTC at the server level too, so nothing depends on the host clock (NFR-9).
+    command: --default-time-zone=+00:00
+    # Overridable: a machine with a local MySQL already on 3306 can set MYSQL_PORT=3307.
+    ports: ['${MYSQL_PORT:-3306}:3306']
+    volumes: ['mysql-data:/var/lib/mysql']
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot']
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports: ['${REDIS_PORT:-6379}:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+volumes:
+  mysql-data:

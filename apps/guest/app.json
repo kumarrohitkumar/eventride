@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "EventRide Guest",
+    "slug": "eventride-guest",
+    "scheme": "eventride-guest",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "extra": { "apiBaseUrl": "http://localhost:3000" },
+    "ios": { "supportsTablet": false },
+    "android": { "package": "com.eventride.guest" }
+  }
+}

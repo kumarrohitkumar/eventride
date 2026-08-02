@@ -1,0 +1,474 @@
+// EventRide data model (LLD §2). MySQL 8.4 / InnoDB.
+//
+// Conventions:
+//  - all timestamps are DATETIME(3) holding UTC only (NFR-9, HLD §2.2) — the connection pins
+//    timezone=UTC and a startup assertion fails fast if the session timezone is not UTC
+//  - money/geo are plain columns; no spatial types (T5 — haversine in memory at this scale)
+//  - INV-5 is enforced by a generated column + unique index, added in a raw SQL migration
+//    because Prisma's schema language cannot express generated columns (see migrations/)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+  GUEST
+}
+
+enum LocationType {
+  AIRPORT
+  STATION
+  ACCOMMODATION
+  VENUE
+  CUSTOM
+}
+
+enum TripType {
+  ARRIVAL
+  TO_VENUE
+  FROM_VENUE
+  DEPARTURE
+  AD_HOC
+}
+
+enum RequestSource {
+  SCHEDULED
+  WAVE
+  ON_DEMAND
+}
+
+enum RequestState {
+  REGISTERED
+  PENDING_APPROVAL
+  APPROVED
+  DECLINED
+  QUEUED
+  ASSIGNED
+  ACCEPTED
+  EN_ROUTE
+  ARRIVED_PICKUP
+  BOARDED
+  COMPLETED
+  UNMATCHED
+  NO_SHOW
+  CANCELLED
+}
+
+enum DriverState {
+  OFFLINE
+  AVAILABLE
+  OFFERED
+  EN_ROUTE_TO_PICKUP
+  AT_PICKUP
+  ON_TRIP
+  ON_BREAK
+  UNAVAILABLE
+}
+
+enum TripState {
+  OFFERED
+  ACCEPTED
+  EN_ROUTE
+  AT_PICKUP
+  ON_TRIP
+  COMPLETED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum StopKind {
+  PICKUP
+  DROP
+}
+
+enum StopState {
+  PENDING
+  ARRIVED
+  DONE
+  SKIPPED
+}
+
+enum BreakState {
+  NONE
+  DUE
+  ON_BREAK
+}
+
+enum Actor {
+  ENGINE
+  ADMIN
+  DRIVER
+  GUEST
+  SYSTEM
+}
+
+enum WaveState {
+  PLANNED
+  DISPATCHED
+  CLOSED
+}
+
+/// Exactly one row — this build is single-event by design (PRD §3).
+model Event {
+  id        String   @id @default(uuid())
+  name      String
+  timezone  String   @default("Asia/Kolkata")
+  startsAt  DateTime @map("starts_at") @db.DateTime(3)
+  endsAt    DateTime @map("ends_at") @db.DateTime(3)
+  /// Every tunable threshold (PRD §12), validated with zod on write.
+  config    Json
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("event")
+}
+
+model Location {
+  id                String       @id @default(uuid())
+  type              LocationType
+  label             String
+  lat               Float
+  lng               Float
+  /// Free text shown to both guest and driver: "Terminal 2, Gate 5, Pillar 7".
+  pickupInstruction String?      @map("pickup_instruction") @db.Text
+  isActive          Boolean      @default(true) @map("is_active")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+
+  guestsAccommodated Guest[] @relation("guest_accommodation")
+  guestsArriving     Guest[] @relation("guest_arrival")
+  guestsDeparting    Guest[] @relation("guest_departure")
+  requestOrigins     TripRequest[] @relation("request_origin")
+  requestDests       TripRequest[] @relation("request_destination")
+  waveOrigins        Wave[]        @relation("wave_origin")
+  waveDests          Wave[]        @relation("wave_destination")
+  tripStops          TripStop[]
+
+  @@index([type])
+  @@map("location")
+}
+
+/// One table for all three roles keeps auth to a single code path (LLD §2.3).
+model AppUser {
+  id           String   @id @default(uuid())
+  role         Role
+  phone        String?  @unique
+  email        String?  @unique
+  passwordHash String?  @map("password_hash")
+  name         String
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  guest             Guest?
+  driver            Driver?
+  notificationTokens NotificationToken[]
+
+  @@map("app_user")
+}
+
+model Guest {
+  id                  String    @id @default(uuid())
+  userId              String    @unique @map("user_id")
+  name                String
+  phone               String
+  groupSize           Int       @map("group_size")
+  luggageCount        Int       @map("luggage_count")
+  accommodationId     String?   @map("accommodation_id")
+  arrivalMode         String?   @map("arrival_mode")
+  arrivalRef          String?   @map("arrival_ref")
+  arrivalAt           DateTime? @map("arrival_at") @db.DateTime(3)
+  arrivalLocationId   String?   @map("arrival_location_id")
+  departureMode       String?   @map("departure_mode")
+  departureRef        String?   @map("departure_ref")
+  departureAt         DateTime? @map("departure_at") @db.DateTime(3)
+  departureLocationId String?   @map("departure_location_id")
+  /// Admin-only flag (D12) — guests cannot elevate themselves.
+  isVip               Boolean   @default(false) @map("is_vip")
+  notes               String?   @db.Text
+  isWalkIn            Boolean   @default(false) @map("is_walk_in")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user              AppUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accommodation     Location? @relation("guest_accommodation", fields: [accommodationId], references: [id])
+  arrivalLocation   Location? @relation("guest_arrival", fields: [arrivalLocationId], references: [id])
+  departureLocation Location? @relation("guest_departure", fields: [departureLocationId], references: [id])
+  requests          TripRequest[]
+
+  @@index([accommodationId])
+  @@index([arrivalAt])
+  @@index([isVip])
+  @@map("guest")
+}
+
+/// One driver is bound to one vehicle for the whole event (D19) — no separate vehicle entity.
+model Driver {
+  id                      String      @id @default(uuid())
+  userId                  String      @unique @map("user_id")
+  name                    String
+  phone                   String
+  vehicleNumber           String      @map("vehicle_number")
+  vehicleType             String      @map("vehicle_type")
+  seatCapacity            Int         @map("seat_capacity")
+  luggageCapacity         Int         @map("luggage_capacity")
+  shiftStart              DateTime    @map("shift_start") @db.DateTime(3)
+  shiftEnd                DateTime    @map("shift_end") @db.DateTime(3)
+  state                   DriverState @default(OFFLINE)
+  /// 30s-sampled mirror of the Redis live position — the L2 degradation fallback (HLD §10).
+  lastLat                 Float?      @map("last_lat")
+  lastLng                 Float?      @map("last_lng")
+  lastLocationAt          DateTime?   @map("last_location_at") @db.DateTime(3)
+  predictedFreeAt         DateTime?   @map("predicted_free_at") @db.DateTime(3)
+  predictedFreeLat        Float?      @map("predicted_free_lat")
+  predictedFreeLng        Float?      @map("predicted_free_lng")
+  drivingMinutesToday     Int         @default(0) @map("driving_minutes_today")
+  tripsSinceBreak         Int         @default(0) @map("trips_since_break")
+  breakState              BreakState  @default(NONE) @map("break_state")
+  breakStartedAt          DateTime?   @map("break_started_at") @db.DateTime(3)
+  unavailableReason       String?     @map("unavailable_reason")
+  /// Optimistic lock — a stale accept loses with 409 TRIP_STALE (HLD §9).
+  version                 Int         @default(0)
+  createdAt               DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips     Trip[]
+  positions DriverPositionHistory[]
+
+  @@index([state])
+  @@index([predictedFreeAt])
+  @@map("driver")
+}
+
+/// The demand unit.
+model TripRequest {
+  id              String        @id @default(uuid())
+  guestId         String        @map("guest_id")
+  tripType        TripType      @map("trip_type")
+  source          RequestSource
+  originId        String        @map("origin_id")
+  destinationId   String        @map("destination_id")
+  /// Overridden on breakdown re-queue to the driver's live position (E5).
+  originLat       Float?        @map("origin_lat")
+  originLng       Float?        @map("origin_lng")
+  scheduledAt     DateTime?     @map("scheduled_at") @db.DateTime(3)
+  /// Set by the guest tap or the auto-queue sweeper — never reset on requeue (D8).
+  readyAt         DateTime?     @map("ready_at") @db.DateTime(3)
+  deadlineAt      DateTime?     @map("deadline_at") @db.DateTime(3)
+  isHardDeadline  Boolean       @default(false) @map("is_hard_deadline")
+  groupSize       Int           @map("group_size")
+  luggageCount    Int           @map("luggage_count")
+  state           RequestState  @default(REGISTERED)
+  priorityScore   Float         @default(0) @map("priority_score")
+  passedOverCount Int           @default(0) @map("passed_over_count")
+  requeueCount    Int           @default(0) @map("requeue_count")
+  unmatchedReason String?       @map("unmatched_reason")
+  groupRef        String?       @map("group_ref")
+  waveId          String?       @map("wave_id")
+  tripId          String?       @map("trip_id")
+  approvalNote    String?       @map("approval_note") @db.Text
+  declineReason   String?       @map("decline_reason") @db.Text
+  createdAt       DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+
+  guest       Guest      @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  origin      Location   @relation("request_origin", fields: [originId], references: [id])
+  destination Location   @relation("request_destination", fields: [destinationId], references: [id])
+  wave        Wave?      @relation(fields: [waveId], references: [id])
+  trip        Trip?      @relation(fields: [tripId], references: [id])
+  stops       TripStop[]
+
+  @@index([state])
+  /// The matching round's hot query. MySQL has no partial indexes, so this composite index
+  /// replaces the Postgres `WHERE state='QUEUED'` variant (HLD §2.2).
+  @@index([state, readyAt])
+  @@index([guestId])
+  @@index([waveId])
+  @@index([tripId])
+  @@index([groupRef])
+  @@map("trip_request")
+}
+
+/// The supply commitment. One trip may serve several pooled requests.
+model Trip {
+  id                 String    @id @default(uuid())
+  driverId           String    @map("driver_id")
+  state              TripState @default(OFFERED)
+  offeredAt          DateTime? @map("offered_at") @db.DateTime(3)
+  acceptedAt         DateTime? @map("accepted_at") @db.DateTime(3)
+  startedAt          DateTime? @map("started_at") @db.DateTime(3)
+  completedAt        DateTime? @map("completed_at") @db.DateTime(3)
+  offerExpiresAt     DateTime? @map("offer_expires_at") @db.DateTime(3)
+  seatsUsed          Int       @default(0) @map("seats_used")
+  luggageUsed        Int       @default(0) @map("luggage_used")
+  plannedPickupAt    DateTime? @map("planned_pickup_at") @db.DateTime(3)
+  plannedDropAt      DateTime? @map("planned_drop_at") @db.DateTime(3)
+  /// FR-M23: why this pairing won, and who came second.
+  scoreBreakdown     Json?     @map("score_breakdown")
+  runnerUpDriverId   String?   @map("runner_up_driver_id")
+  decisionRoundId    String?   @map("decision_round_id")
+  /// Admin override pins a trip so the engine will not re-optimise it away (E16).
+  isPinned           Boolean   @default(false) @map("is_pinned")
+  overrideReason     String?   @map("override_reason") @db.Text
+  rejectReason       String?   @map("reject_reason") @db.Text
+  version            Int       @default(0)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  /// Generated column added by raw SQL migration; equals driverId while the trip is active and
+  /// NULL otherwise. A UNIQUE index on it enforces INV-5 in the DATABASE (HLD §2.2).
+  activeDriverId String? @map("active_driver_id")
+
+  driver   Driver        @relation(fields: [driverId], references: [id])
+  stops    TripStop[]
+  requests TripRequest[]
+
+  @@index([driverId])
+  @@index([state])
+  @@map("trip")
+}
+
+model TripStop {
+  id           String    @id @default(uuid())
+  tripId       String    @map("trip_id")
+  seq          Int
+  kind         StopKind
+  requestId    String    @map("request_id")
+  locationId   String    @map("location_id")
+  lat          Float
+  lng          Float
+  state        StopState @default(PENDING)
+  plannedAt    DateTime? @map("planned_at") @db.DateTime(3)
+  arrivedAt    DateTime? @map("arrived_at") @db.DateTime(3)
+  departedAt   DateTime? @map("departed_at") @db.DateTime(3)
+  /// +n at pickup, −n at drop. The prefix sum over these IS invariant INV-1 (LLD §2.8).
+  seatsDelta   Int       @map("seats_delta")
+  luggageDelta Int       @map("luggage_delta")
+
+  trip     Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  request  TripRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  location Location    @relation(fields: [locationId], references: [id])
+
+  @@unique([tripId, seq])
+  @@index([requestId])
+  @@map("trip_stop")
+}
+
+/// A wave is a TAG on existing requests, not a separate pipeline (FR-M4, D2).
+model Wave {
+  id            String    @id @default(uuid())
+  tripType      TripType  @map("trip_type")
+  originId      String    @map("origin_id")
+  destinationId String    @map("destination_id")
+  departsAt     DateTime  @map("departs_at") @db.DateTime(3)
+  state         WaveState @default(PLANNED)
+  seatsNeeded   Int       @default(0) @map("seats_needed")
+  seatsAssigned Int       @default(0) @map("seats_assigned")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  origin      Location      @relation("wave_origin", fields: [originId], references: [id])
+  destination Location      @relation("wave_destination", fields: [destinationId], references: [id])
+  requests    TripRequest[]
+
+  @@index([state, departsAt])
+  @@map("wave")
+}
+
+/// Append-only audit log (D36). No update or delete path exists in the repository layer.
+model StatusEvent {
+  id          String   @id @default(uuid())
+  /// Monotonic insertion order. Timestamps alone are not enough: several transitions in one
+  /// transaction share the same millisecond, and "who did what in which order" is the whole point
+  /// of an audit trail. MySQL permits AUTO_INCREMENT on a non-PK column when it is indexed.
+  seq         Int      @unique @default(autoincrement())
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  fromState   String?  @map("from_state")
+  toState     String   @map("to_state")
+  actor       Actor
+  actorUserId String?  @map("actor_user_id")
+  reason      String?  @db.Text
+  meta        Json?
+  at          DateTime @default(now()) @db.DateTime(3)
+
+  @@index([entityType, entityId])
+  @@index([at])
+  @@index([seq])
+  @@map("status_event")
+}
+
+/// One record per matching round: what was decided, and every rejection with its reason (FR-M23).
+model DecisionRound {
+  id             String   @id @default(uuid())
+  trigger        String
+  startedAt      DateTime @map("started_at") @db.DateTime(3)
+  durationMs     Int      @map("duration_ms")
+  snapshotDigest String?  @map("snapshot_digest")
+  decisions      Json
+  rejections     Json
+  routingCalls   Int      @default(0) @map("routing_calls")
+
+  @@index([startedAt])
+  @@map("decision_round")
+}
+
+model Alert {
+  id             String    @id @default(uuid())
+  type           String
+  severity       String
+  entityType     String?   @map("entity_type")
+  entityId       String?   @map("entity_id")
+  message        String    @db.Text
+  meta           Json?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  acknowledgedAt DateTime? @map("acknowledged_at") @db.DateTime(3)
+  acknowledgedBy String?   @map("acknowledged_by")
+
+  @@index([type, acknowledgedAt])
+  @@map("alert")
+}
+
+model DriverPositionHistory {
+  id       String   @id @default(uuid())
+  driverId String   @map("driver_id")
+  lat      Float
+  lng      Float
+  at       DateTime @default(now()) @db.DateTime(3)
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, at])
+  @@map("driver_position_history")
+}
+
+model OtpCode {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at") @db.DateTime(3)
+  consumedAt DateTime? @map("consumed_at") @db.DateTime(3)
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([phone, expiresAt])
+  @@map("otp_code")
+}
+
+model NotificationToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_token")
+}

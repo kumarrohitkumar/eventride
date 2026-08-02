@@ -1,0 +1,15 @@
+{
+  "name": "@eventride/routing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@eventride/shared": "workspace:*"
+  }
+}
