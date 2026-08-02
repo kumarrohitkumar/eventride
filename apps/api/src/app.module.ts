@@ -1,4 +1,4 @@
-import { Module, Inject } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { ScheduleModule } from '@nestjs/schedule'
 import { PrismaClient } from '@prisma/client'
@@ -25,7 +25,7 @@ const env = loadEnv()
 
 /** Redis-backed cache for the routing layer, so entries survive a restart and are shared. */
 class RedisCacheStore implements CacheStore {
-  constructor(@Inject(Redis) private readonly redis: Redis) {}
+  constructor(private readonly redis: Redis) {}
   async get(key: string): Promise<string | null> {
     try {
       return await this.redis.get(key)

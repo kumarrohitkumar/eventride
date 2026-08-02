@@ -8,7 +8,7 @@ live traffic.
 never hand-pick a driver in the normal flow. The matching engine is the only allocator; humans only
 load people into the system, approve ad-hoc requests, and override in emergencies.
 
-Docs: [PRD](docs/PRD.md) · [HLD](docs/HLD.md) · [LLD](docs/LLD.md) · **[Matching design](docs/DESIGN-matching.md)** · [Traceability](docs/TRACEABILITY.md)
+Docs: [PRD](docs/PRD.md) · [HLD](docs/HLD.md) · [LLD](docs/LLD.md) · **[Matching design](docs/DESIGN-matching.md)** · [Traceability](docs/TRACEABILITY.md) · **[Deploy](docs/DEPLOY.md)**
 
 ---
 
@@ -52,7 +52,6 @@ pnpm sim:peak      # peak-arrival simulation + metrics + CI gate
 docker compose up -d
 cp .env.example apps/api/.env
 pnpm --filter @eventride/api prisma migrate deploy
-pnpm --filter @eventride/api prisma generate
 pnpm db:seed       # 1 event · 6 locations · 40 drivers · 200 guests · 1 admin
 pnpm api:dev       # http://localhost:3000  (/health, /ready, /metrics)
 
@@ -68,7 +67,21 @@ Driver : +919000001000    OTP 000000
 Guest  : +919900001000    OTP 000000
 ```
 
-### 3. Integration tests (needs the database)
+### 3. Container (verified)
+
+```bash
+docker build -f apps/api/Dockerfile -t eventride-api .
+docker run -p 3000:3000 \
+  -e DATABASE_URL="mysql://root:root@host.docker.internal:3306/eventride?timezone=UTC" \
+  -e REDIS_URL="redis://host.docker.internal:6379" \
+  -e JWT_SECRET="change-me" -e NODE_ENV=production -e DEV_OTP_ENABLED=false \
+  eventride-api
+```
+
+Boots healthy, runs `prisma migrate deploy` on start, connects to MySQL and Redis, and runs as a
+non-root user. Hosting steps: [docs/DEPLOY.md](docs/DEPLOY.md).
+
+### 4. Integration tests (needs the database)
 
 ```bash
 docker exec <mysql> mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS eventride_test"

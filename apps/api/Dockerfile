@@ -16,12 +16,23 @@ COPY packages/engine/package.json      packages/engine/
 COPY packages/routing/package.json     packages/routing/
 COPY packages/api-client/package.json  packages/api-client/
 COPY apps/api/package.json             apps/api/
+# The schema must exist before install: apps/api has a `postinstall: prisma generate`, and without
+# the schema in place that hook fails the whole install. Copied here rather than with the rest of
+# the source so the dependency layer still caches independently of application code.
+COPY apps/api/prisma                   apps/api/prisma
 RUN pnpm install --frozen-lockfile --filter @eventride/api...
 
 COPY packages ./packages
 COPY apps/api ./apps/api
-RUN pnpm --filter @eventride/api exec prisma generate \
-    && pnpm --filter @eventride/api build
+# No compile step: the workspace packages are consumed as TypeScript source (main: ./src/index.ts),
+# which tsx, Metro and vitest all handle but plain `node` cannot — a tsc build of the API alone
+# emits JS that still imports `packages/shared/src/index.ts` and dies at boot.
+#
+# Trade-off taken deliberately: the container runs the API through tsx rather than pre-compiling.
+# It costs a few hundred ms of startup transpilation and ships a transpiler in the image. The
+# alternative — emitting dist/ for every workspace package with dual exports maps — buys marginal
+# runtime benefit and would fragment how the same source is loaded by the apps and the test suite.
+RUN pnpm --filter @eventride/api exec prisma generate
 
 FROM node:20-slim AS runtime
 
@@ -36,7 +47,7 @@ WORKDIR /repo
 COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/packages ./packages
 COPY --from=builder /repo/apps/api ./apps/api
-COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml ./
+COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml /repo/tsconfig.base.json ./
 
 # Never run as root.
 RUN useradd --create-home --shell /usr/sbin/nologin eventride && chown -R eventride:eventride /repo
@@ -48,4 +59,4 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=4 \
 
 WORKDIR /repo/apps/api
 # migrate deploy (never `migrate dev`) so a container start can never generate or reset a migration.
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/apps/api/src/main.js"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec tsx src/main.ts"]

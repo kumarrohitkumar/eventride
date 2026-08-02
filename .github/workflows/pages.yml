@@ -1,0 +1,105 @@
+name: Publish app previews to GitHub Pages
+
+# Gives both apps a clickable link without needing any account beyond GitHub.
+#
+# The web build is a genuine preview of layout and flow, NOT the product: expo-secure-store does not
+# exist on web (so the session is in-memory and does not survive a refresh), and push notifications
+# and background location are native-only. See docs/DEPLOY.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # Point the built apps at the deployed API. Set API_BASE_URL under
+      # Settings → Variables → Actions, and add this Pages origin to the API's CORS_ORIGINS —
+      # otherwise the apps load and every request fails preflight.
+      - name: Inject the API base URL
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [ -n "$API_BASE_URL" ]; then
+            for app in guest portal; do
+              node -e "
+                const fs = require('node:fs');
+                const path = 'apps/$app/app.json';
+                const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+                cfg.expo.extra.apiBaseUrl = process.env.API_BASE_URL;
+                fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+              "
+            done
+            echo "apps pointed at $API_BASE_URL"
+          else
+            echo "::warning::API_BASE_URL is not set — the previews will render but cannot reach an API"
+          fi
+
+      # --base-url matters: Pages serves from /<repo>/, and without it every asset 404s.
+      - name: Export both apps
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          pnpm --filter @eventride/guest exec expo export \
+            --platform web --output-dir ../../site/guest --base-url "/$REPO/guest"
+          pnpm --filter @eventride/portal exec expo export \
+            --platform web --output-dir ../../site/portal --base-url "/$REPO/portal"
+
+      - name: Landing page
+        run: |
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>EventRide — app previews</title>
+          <style>
+            body { font-family: -apple-system, system-ui, sans-serif; max-width: 40rem;
+                   margin: 3rem auto; padding: 0 1.25rem; color: #111827; line-height: 1.6 }
+            a.card { display: block; border: 1px solid #e5e7eb; border-radius: 12px;
+                     padding: 1rem 1.25rem; margin: .75rem 0; text-decoration: none; color: inherit }
+            a.card:hover { border-color: #1d4ed8 }
+            code { background: #f3f4f6; padding: .1rem .35rem; border-radius: 4px }
+            .note { background: #fef3c7; border-radius: 8px; padding: .75rem 1rem; font-size: .9rem }
+          </style>
+          <h1>EventRide</h1>
+          <p>Automated fleet dispatch for a single large private event.</p>
+          <a class="card" href="./guest/"><strong>Guest app →</strong><br>
+            Sign in, tap “I have arrived”, watch a driver get assigned automatically.</a>
+          <a class="card" href="./portal/"><strong>Admin Portal →</strong><br>
+            Operations dashboard and the Driver role, separated by RBAC.</a>
+          <p class="note"><strong>These are web previews, not the product.</strong> The apps are React
+            Native; <code>expo-secure-store</code> does not exist on web, so a refresh signs you out,
+            and push notifications and background location are native-only.</p>
+          <p>Dev sign-in: any seeded phone with OTP <code>000000</code>; admin
+            <code>admin@event.test / admin123</code>.</p>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
