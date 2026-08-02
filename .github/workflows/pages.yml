@@ -35,33 +35,33 @@ jobs:
       # Point the built apps at the deployed API. Set API_BASE_URL under
       # Settings → Variables → Actions, and add this Pages origin to the API's CORS_ORIGINS —
       # otherwise the apps load and every request fails preflight.
-      - name: Inject the API base URL
+      # Patches both app configs before export:
+      #   apiBaseUrl — so the previews talk to the deployed API (app.json already commits it, this
+      #                only allows overriding via a repo variable)
+      #   experiments.baseUrl — REQUIRED because Pages serves from /<repo>/<app>/. There is no
+      #                --base-url flag on `expo export` (SDK 52 removed it); the base path comes from
+      #                the app config, and without it every asset 404s.
+      - name: Configure both apps for Pages
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
+          REPO: ${{ github.event.repository.name }}
         run: |
-          if [ -n "$API_BASE_URL" ]; then
-            for app in guest portal; do
-              node -e "
-                const fs = require('node:fs');
-                const path = 'apps/$app/app.json';
-                const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
-                cfg.expo.extra.apiBaseUrl = process.env.API_BASE_URL;
-                fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
-              "
-            done
-            echo "apps pointed at $API_BASE_URL"
-          else
-            echo "API_BASE_URL variable not set — using the value committed in app.json"
-          fi
+          for app in guest portal; do
+            node -e "
+              const fs = require('node:fs');
+              const path = 'apps/$app/app.json';
+              const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+              if (process.env.API_BASE_URL) cfg.expo.extra.apiBaseUrl = process.env.API_BASE_URL;
+              cfg.expo.experiments = { ...(cfg.expo.experiments || {}), baseUrl: '/' + process.env.REPO + '/$app' };
+              fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+              console.log('$app ->', cfg.expo.extra.apiBaseUrl, 'baseUrl', cfg.expo.experiments.baseUrl);
+            "
+          done
 
-      # --base-url matters: Pages serves from /<repo>/, and without it every asset 404s.
       - name: Export both apps
         run: |
-          REPO="${{ github.event.repository.name }}"
-          pnpm --filter @eventride/guest exec expo export \
-            --platform web --output-dir ../../site/guest --base-url "/$REPO/guest"
-          pnpm --filter @eventride/portal exec expo export \
-            --platform web --output-dir ../../site/portal --base-url "/$REPO/portal"
+          pnpm --filter @eventride/guest exec expo export --platform web --output-dir ../../site/guest
+          pnpm --filter @eventride/portal exec expo export --platform web --output-dir ../../site/portal
 
       - name: Landing page
         run: |
