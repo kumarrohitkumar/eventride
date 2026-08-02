@@ -175,6 +175,10 @@ export default function AdminDashboardScreen(): React.JSX.Element {
         <SecondaryButton title="Exceptions" onPress={() => router.push('/admin/exceptions')} />
         <SecondaryButton title="Drivers" onPress={() => router.push('/admin/drivers')} />
         <SecondaryButton title="Guests" onPress={() => router.push('/admin/guests')} />
+        <SecondaryButton title="Shuttle waves" onPress={() => router.push('/admin/waves')} />
+        <SecondaryButton title="Dispatch rounds — why?" onPress={() => router.push('/admin/rounds')} />
+        <SecondaryButton title="Audit trail" onPress={() => router.push('/admin/audit')} />
+        <SecondaryButton title="Configuration" onPress={() => router.push('/admin/config')} />
         <PrimaryButton
           title="Run dispatch round now"
           onPress={() => void client.admin.runBatch().then(() => load())}

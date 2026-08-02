@@ -71,7 +71,7 @@ export class EventRideClient {
    * duplicate ride request, which is exactly the thing E18 exists to prevent.
    */
   private async request<T>(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
     attempt = 0,
@@ -156,8 +156,20 @@ export class EventRideClient {
         'POST',
         `/api/v1/me/requests/${requestId}/no-longer-needed`,
       ),
-    registerPush: (token: string, platform: string) =>
-      this.request<{ stored: boolean }>('POST', '/api/v1/me/push-token', { token, platform }),
+  }
+
+  /**
+   * Push registration, available to every role — a driver's expiring offer and an ops alert need a
+   * push just as much as a guest's "your driver has arrived".
+   */
+  async registerPushToken(token: string, platform: 'ios' | 'android' | 'web'): Promise<void> {
+    await this.request('POST', '/api/v1/me/push-token', { token, platform })
+  }
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await this.request('DELETE', '/api/v1/me/push-token', { token }).catch(() => {
+      /* sign-out must never fail because a token could not be cleaned up */
+    })
   }
 
   // ---------------------------------------------------------------- driver
@@ -218,6 +230,9 @@ export class EventRideClient {
     createDriver: (input: CreateDriverInput) => this.request('POST', '/api/v1/admin/drivers', input),
     runBatch: () => this.request<{ ran: boolean; decisions: number }>('POST', '/api/v1/admin/batch-plan/run'),
     rounds: () => this.request<DecisionRoundSummary[]>('GET', '/api/v1/admin/rounds'),
+    round: (id: string) => this.request<unknown>('GET', `/api/v1/admin/rounds/${id}`),
+    audit: (entityId?: string) =>
+      this.request<unknown[]>('GET', `/api/v1/admin/audit${entityId ? `?entityId=${entityId}` : ''}`),
     alerts: () => this.request<AlertRow[]>('GET', '/api/v1/admin/alerts'),
     ackAlert: (id: string) => this.request('POST', `/api/v1/admin/alerts/${id}/ack`),
     config: () => this.request<Record<string, unknown>>('GET', '/api/v1/admin/config'),

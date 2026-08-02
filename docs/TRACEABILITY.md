@@ -64,6 +64,10 @@ any driver payload.
 | FR-A8 | Bulk guest CSV import | `POST /admin/guests/import` | ✅ all-or-nothing with per-row errors |
 | FR-A9 | Manual override (reason mandatory, engine-independent) | `is_pinned`, `override_reason` | ✅ applier honours pins; engine never touches pinned trips |
 | FR-A10 | Upcoming trips board | `GET /admin/requests` + `planned_pickup_at` | 🟡 data exposed; a dedicated timeline screen is not built |
+| FR-A12 | Wave management UI | `app/admin/waves.tsx` | 🔵 plan + dispatch, with the seat shortfall surfaced |
+| FR-A15 | Config editor UI | `app/admin/config.tsx` | 🔵 all 30 thresholds, grouped, diff-before-save |
+| FR-A16 | Audit timeline UI | `app/admin/audit.tsx` | 🔵 ordered by `seq`, colour-coded by actor |
+| FR-M23 | Round detail UI ("why did it do that") | `app/admin/rounds.tsx` | 🔵 decisions + rejections grouped by reason |
 | FR-A11 | Exception queue with typed reasons | `dominantReason`, `UNMATCHED_REASONS` | ✅ 8 reasons, each tested |
 | FR-A12 | Wave management | `waves.ts`, `wave` table | ✅ planning + allocation tested |
 | FR-A13 | Batch plan preview/publish | `planBatch` | ✅ batch tested (idempotent, deterministic) |
@@ -175,6 +179,10 @@ Verification differs by layer, and it is worth being precise about which is whic
 - **🟡 Verified indirectly** — three items: the upcoming-trips timeline (data exposed, no dedicated
   screen), a live traffic-spike rehearsal (needs a billed Google key), and multi-instance scale-out
   (designed with a Redis lock and adapter, not load-tested).
+
+**Push notifications** now work end to end on the server and register correctly from both apps —
+verified live that ADMIN, DRIVER and GUEST tokens all store and unregister. What remains unverified is
+delivery to a physical device, which needs a real handset.
 
 Two limitations that a reviewer should weigh: **no on-device verification of the apps**, and
 **no integration test suite against MySQL** — the DB-level behaviours were proven by hand rather

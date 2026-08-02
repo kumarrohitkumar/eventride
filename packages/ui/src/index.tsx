@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 
 export { TileMap, type MapMarker, type TileMapProps } from './TileMap.js'
+export { usePushRegistration, type PushStatus, type PushRegistrar } from './usePushRegistration.js'
 
 /**
  * Shared component vocabulary for both apps (HLD §2.1).

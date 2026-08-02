@@ -178,19 +178,6 @@ export class GuestController {
     return { acknowledged: true }
   }
 
-  @Post('push-token')
-  async pushToken(
-    @Principal() principal: AuthPrincipal,
-    @Body() body: { token: string; platform: string },
-  ) {
-    const input = z.object({ token: z.string().min(10), platform: z.string() }).parse(body)
-    await this.prisma.notificationToken.upsert({
-      where: { token: input.token },
-      create: { userId: principal.userId, token: input.token, platform: input.platform },
-      update: { userId: principal.userId, platform: input.platform },
-    })
-    return { stored: true }
-  }
 
   /** Row-level check (layer 2): the row must belong to the caller even though it exists. */
   private async assertOwn(principal: AuthPrincipal, requestId: string): Promise<void> {

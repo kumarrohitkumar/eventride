@@ -241,6 +241,6 @@ with the app foregrounded · no offline write queue (screens degrade to cached r
 is a static tile view with no gestures, chosen so the apps need no native map SDK or API key ·
 `active_driver_id` is a hand-written generated column because Prisma cannot express one ·
 the apps have been verified by typecheck and bundle, not by on-device screenshots · push
-notifications are wired and unit-tested against a mocked transport, but real delivery to a device is
-unverified · four admin screens (config editor, round detail, audit timeline, wave management) have
-working tested endpoints but no UI.
+registration and sending are implemented and tested (registration verified live for all three roles),
+but actual delivery to a physical device is unverified · no load test against the real API, and
+multi-instance scale-out is designed for but untested.

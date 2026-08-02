@@ -2,12 +2,14 @@ import React from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { Loading, theme } from '@eventride/ui'
-import { SessionProvider, useSession } from '../src/session.js'
+import { Loading, theme, usePushRegistration } from '@eventride/ui'
+import { SessionProvider, useSession, client } from '../src/session.js'
 
 /** Root layout: gates every screen behind a restored session. */
 function Gate({ children }: { children: React.ReactNode }): React.JSX.Element {
-  const { restoring } = useSession()
+  const { restoring, session } = useSession()
+  // Registers the device once the guest is authenticated; failure degrades to sockets only.
+  usePushRegistration(client, Boolean(session))
   if (restoring) return <Loading label="Signing you in…" />
   return <>{children}</>
 }
