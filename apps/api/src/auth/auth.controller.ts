@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UnauthorizedException, UseGuards, Inject } from '@nestjs/common'
+import { Body, Controller, Get, Post, UnauthorizedException, UseGuards, Inject, HttpCode } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
@@ -23,6 +23,7 @@ export class AuthController {
     @Inject(JwtService) private readonly jwt: JwtService,
   ) {}
 
+  @HttpCode(200)
   @Post('otp/request')
   async requestOtp(@Body() body: unknown) {
     const { phone } = z.object({ phone: z.string().min(6) }).parse(body)
@@ -44,6 +45,7 @@ export class AuthController {
     return { sent: true, ...(env.DEV_OTP_ENABLED ? { devCode: code } : {}) }
   }
 
+  @HttpCode(200)
   @Post('otp/verify')
   async verifyOtp(@Body() body: unknown) {
     const { phone, code } = z
@@ -84,6 +86,7 @@ export class AuthController {
   }
 
   /** Admins use credentials rather than OTP — they are staff, created by other admins. */
+  @HttpCode(200)
   @Post('login')
   async login(@Body() body: unknown) {
     const { email, password } = z

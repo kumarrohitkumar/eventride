@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Inject, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Inject, Post, UseGuards, HttpCode } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AuthGuard, Principal, Roles, RolesGuard } from './guards.js'
@@ -23,6 +23,7 @@ const tokenSchema = z.object({
 export class PushController {
   constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
+  @HttpCode(200)
   @Post('push-token')
   async register(@Principal() principal: AuthPrincipal, @Body() body: unknown) {
     const input = tokenSchema.parse(body)

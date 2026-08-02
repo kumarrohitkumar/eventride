@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Inject } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, UseGuards, Inject, HttpCode } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import Redis from 'ioredis'
 import { z } from 'zod'
@@ -37,6 +37,7 @@ export class DriverController {
     @Inject(EventsGateway) private readonly gateway: EventsGateway,
   ) {}
 
+  @HttpCode(200)
   @Post('duty')
   async duty(@Principal() principal: AuthPrincipal, @Body() body: unknown) {
     const { online } = z.object({ online: z.boolean() }).parse(body)
@@ -91,6 +92,7 @@ export class DriverController {
     }
   }
 
+  @HttpCode(200)
   @Post('trip/:id/accept')
   async accept(
     @Principal() principal: AuthPrincipal,
@@ -126,6 +128,7 @@ export class DriverController {
   }
 
   /** FR-D5: reject with a reason. Cooldown lives in Redis with a TTL, so it expires itself. */
+  @HttpCode(200)
   @Post('trip/:id/reject')
   async reject(
     @Principal() principal: AuthPrincipal,
@@ -150,6 +153,7 @@ export class DriverController {
     return { requeued: requests.length }
   }
 
+  @HttpCode(200)
   @Post('trip/:id/stops/:stopId/arrived')
   async arrived(
     @Principal() principal: AuthPrincipal,
@@ -172,6 +176,7 @@ export class DriverController {
     return { ok: true }
   }
 
+  @HttpCode(200)
   @Post('trip/:id/stops/:stopId/boarded')
   async boarded(
     @Principal() principal: AuthPrincipal,
@@ -182,6 +187,7 @@ export class DriverController {
     return { ok: true }
   }
 
+  @HttpCode(200)
   @Post('trip/:id/stops/:stopId/dropped')
   async dropped(
     @Principal() principal: AuthPrincipal,
@@ -195,6 +201,7 @@ export class DriverController {
   }
 
   /** FR-D11: only offered after the wait timer; the service enforces the timing. */
+  @HttpCode(200)
   @Post('trip/:id/stops/:stopId/guest-not-found')
   async guestNotFound(
     @Principal() principal: AuthPrincipal,
@@ -210,6 +217,7 @@ export class DriverController {
    * FR-D7: high-frequency, low-value writes go to Redis; MySQL is mirrored every 30 s for the
    * audit trail and as the L2 fallback (HLD §10).
    */
+  @HttpCode(200)
   @Post('location')
   async location(@Principal() principal: AuthPrincipal, @Body() body: unknown) {
     const input = locationSchema.parse(body)
@@ -245,6 +253,7 @@ export class DriverController {
   }
 
   /** FR-D9: auto-granted when the queue allows it, otherwise it waits for admin. */
+  @HttpCode(200)
   @Post('break/request')
   async requestBreak(@Principal() principal: AuthPrincipal) {
     const queued = await this.prisma.tripRequest.count({ where: { state: 'QUEUED' } })

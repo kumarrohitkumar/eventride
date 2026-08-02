@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Inject } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, UseGuards, Inject, HttpCode } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { DomainError } from '../trips/ports.js'
@@ -124,6 +124,7 @@ export class GuestController {
   }
 
   /** FR-G3 — the tap that creates demand. */
+  @HttpCode(200)
   @Post('requests/:id/ready')
   async ready(@Principal() principal: AuthPrincipal, @Param('id') id: string) {
     await this.assertOwn(principal, id)
@@ -163,6 +164,7 @@ export class GuestController {
   }
 
   /** FR-G15 — no self-cancel: this raises a note for ops, who decide. */
+  @HttpCode(200)
   @Post('requests/:id/no-longer-needed')
   async noLongerNeeded(@Principal() principal: AuthPrincipal, @Param('id') id: string) {
     await this.assertOwn(principal, id)

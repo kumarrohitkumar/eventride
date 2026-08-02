@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   Inject,
+  HttpCode,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { PrismaClient } from '@prisma/client'
@@ -163,6 +164,7 @@ export class AdminController {
   }
 
   /** E5 — breakdown: re-queues onboard guests from the driver's live position. */
+  @HttpCode(200)
   @Post('drivers/:id/unavailable')
   async markUnavailable(@Param('id') id: string, @Body() body: unknown) {
     const { reason } = z.object({ reason: z.string().min(3) }).parse(body)
@@ -176,6 +178,7 @@ export class AdminController {
     return result
   }
 
+  @HttpCode(200)
   @Post('drivers/:id/break')
   async manageBreak(@Param('id') id: string, @Body() body: unknown) {
     const { grant } = z.object({ grant: z.boolean() }).parse(body)
@@ -305,6 +308,7 @@ export class AdminController {
   }
 
   /** FR-A5 — approval gates ENTRY to the engine. Note: no driverId parameter exists here. */
+  @HttpCode(200)
   @Post('requests/:id/approve')
   async approve(@Principal() principal: AuthPrincipal, @Param('id') id: string) {
     await this.trips.approveRequest(id, principal.userId)
@@ -314,6 +318,7 @@ export class AdminController {
     return { state: 'QUEUED' }
   }
 
+  @HttpCode(200)
   @Post('requests/:id/decline')
   async decline(
     @Principal() principal: AuthPrincipal,
@@ -328,6 +333,7 @@ export class AdminController {
     return { state: 'DECLINED' }
   }
 
+  @HttpCode(200)
   @Post('requests/:id/retry')
   async retry(@Param('id') id: string) {
     await this.trips.markReady(id, 'SYSTEM')
@@ -340,6 +346,7 @@ export class AdminController {
    * engine will not re-optimise it away, and it is a plain DB write path that works even when the
    * engine is down (D35, G7).
    */
+  @HttpCode(200)
   @Post('requests/:id/override-assign')
   async overrideAssign(
     @Principal() principal: AuthPrincipal,
@@ -411,6 +418,7 @@ export class AdminController {
     return { tripId: trip.id, pinned: trip.isPinned }
   }
 
+  @HttpCode(200)
   @Post('requests/:id/cancel')
   async cancel(@Param('id') id: string, @Body() body: unknown) {
     const { reason } = z.object({ reason: z.string().min(3) }).parse(body)
@@ -474,6 +482,7 @@ export class AdminController {
   }
 
   /** FR-M6 — dispatch a wave: its requests become QUEUED, and the engine assigns the vehicles. */
+  @HttpCode(200)
   @Post('waves/:id/dispatch')
   async dispatchWave(@Param('id') id: string) {
     const wave = await this.prisma.wave.findUnique({ where: { id }, include: { requests: true } })
@@ -511,6 +520,7 @@ export class AdminController {
    * Runs the real engine over the current snapshot and returns what it WOULD do, touching nothing.
    * Ops can see the proposed pairings, and every rejection with its reason, before publishing.
    */
+  @HttpCode(200)
   @Post('batch-plan/preview')
   async previewBatch() {
     const preview = await this.dispatch.previewRound()
@@ -525,12 +535,14 @@ export class AdminController {
   }
 
   /** FR-A13 — publish: run for real and commit. */
+  @HttpCode(200)
   @Post('batch-plan/publish')
   async publishBatch() {
     return this.dispatch.runRoundSafely('admin-batch-publish')
   }
 
   /** Kept as an alias so existing callers and the dashboard button do not break. */
+  @HttpCode(200)
   @Post('batch-plan/run')
   async runBatch() {
     return this.dispatch.runRoundSafely('admin-batch')
@@ -563,6 +575,7 @@ export class AdminController {
     return this.prisma.alert.findMany({ orderBy: { createdAt: 'desc' }, take: 100 })
   }
 
+  @HttpCode(200)
   @Post('alerts/:id/ack')
   async ackAlert(@Principal() principal: AuthPrincipal, @Param('id') id: string) {
     return this.prisma.alert.update({
