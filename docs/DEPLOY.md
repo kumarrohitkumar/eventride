@@ -104,14 +104,26 @@ https://<user>.github.io/<repo>/portal/
 `expo-secure-store` does not exist on web, so the session lives in memory and does not survive a
 refresh; push notifications and background location are native-only.
 
-### Option C — native builds
+### Option C — a downloadable APK (the real app)
 
 ```bash
-npx eas build --platform android --profile preview
+npm i -g eas-cli
+eas login                                    # free Expo account; opens a browser
+cd apps/guest  && eas build -p android --profile preview
+cd apps/portal && eas build -p android --profile preview
 ```
 
-Needs an Expo account. This is the only path that exercises push delivery, background location and
-the OS permission dialogs — all of which remain unverified in this build.
+Each build runs in Expo's cloud (~10–15 min) and ends with a URL serving a `.apk` a reviewer can
+install on any Android phone. `eas.json` is committed with `buildType: apk` and
+`distribution: internal`, so no Play Store account is involved, and both apps already point at the
+deployed API.
+
+This is the **only** path that exercises push delivery, background location and the OS permission
+dialogs — all three are unverified in this build precisely because no device or simulator was
+available. Running an APK on a real phone is what would close that gap.
+
+iOS needs a paid Apple Developer account for installable builds, so Android is the practical choice
+for a reviewer.
 
 ---
 
