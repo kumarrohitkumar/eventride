@@ -12,6 +12,52 @@ load people into the system, approve ad-hoc requests, and override in emergencie
 live database state. Admin `admin@event.test` / `admin123`; guest and driver sign in with any seeded
 phone and OTP `000000`.
 
+---
+
+## Reviewing this? Start here
+
+**Nothing to install — 60 seconds:**
+
+1. Open **https://eventride-api-production.up.railway.app** — the landing page reads the live
+   database: guests, drivers, waiting, unmatched, dispatch rounds.
+2. Click **`/ready`** — proves MySQL *and* Redis are reachable, not just that the process is up.
+3. Get a token and look at what dispatch decided:
+
+```bash
+API=https://eventride-api-production.up.railway.app
+TOKEN=$(curl -s -X POST $API/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"admin@event.test","password":"admin123"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+curl -s $API/api/v1/admin/dashboard -H "Authorization: Bearer $TOKEN"   # counts + demand-vs-supply
+curl -s $API/api/v1/admin/rounds    -H "Authorization: Bearer $TOKEN"   # every matching round
+curl -s $API/api/v1/admin/audit     -H "Authorization: Bearer $TOKEN"   # who did what, in order
+
+# RBAC: a driver token on an admin route must be refused
+curl -s -o /dev/null -w '%{http_code}\n' $API/api/v1/admin/dashboard -H "Authorization: Bearer <driver-token>"
+```
+
+**To see the two apps** (they are React Native, so the API URL above is the backend, not a UI):
+
+| | How |
+|---|---|
+| Fastest | `pnpm install && pnpm guest` / `pnpm portal` — scan the QR with Expo Go |
+| No install | web previews (see [docs/DEPLOY.md](docs/DEPLOY.md) §2 Option B) |
+| Real app | downloadable APK via EAS ([DEPLOY.md](docs/DEPLOY.md) §2 Option C) |
+
+**To judge the engine — the part that matters:**
+
+```bash
+pnpm install
+pnpm sim:peak   # peak-arrival simulation with pass/fail gates, no DB or API key needed
+pnpm test       # 290 tests, incl. property tests for capacity, starvation and deadlines
+```
+
+Then read **[docs/DESIGN-matching.md](docs/DESIGN-matching.md)** (algorithm + trade-offs) and
+**[docs/TRACEABILITY.md](docs/TRACEABILITY.md)** — every requirement, how it was verified, and an
+explicit list of what is **not** verified.
+
+---
+
 Docs: [PRD](docs/PRD.md) · [HLD](docs/HLD.md) · [LLD](docs/LLD.md) · **[Matching design](docs/DESIGN-matching.md)** · [Traceability](docs/TRACEABILITY.md) · **[Deploy](docs/DEPLOY.md)**
 
 ---
@@ -44,7 +90,7 @@ actor, and a driver-role token correctly refused (403) on an admin route.
 
 ```bash
 pnpm install
-pnpm test          # 274 unit + property tests
+pnpm test          # 290 unit + property tests
 pnpm lint
 pnpm sim:peak      # peak-arrival simulation + metrics + CI gate
 ```
