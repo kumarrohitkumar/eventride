@@ -27,7 +27,8 @@
     "db:migrate": "pnpm --filter @eventride/api prisma migrate dev",
     "db:push": "pnpm --filter @eventride/api prisma db push",
     "db:seed": "pnpm --filter @eventride/api seed",
-    "db:reset": "pnpm --filter @eventride/api prisma migrate reset --force"
+    "db:reset": "pnpm --filter @eventride/api prisma migrate reset --force",
+    "deploy:railway": "bash scripts/deploy-railway.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
