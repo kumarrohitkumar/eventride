@@ -47,6 +47,14 @@ export default ts.config(
     rules: { '@typescript-eslint/no-require-imports': 'off', 'no-undef': 'off' },
   },
   {
+    // Build/deploy scripts are ESM Node programs: they legitimately use `process` and friends.
+    files: ['**/build.mjs', 'scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: { process: 'readonly', console: 'readonly', URL: 'readonly', Buffer: 'readonly' },
+    },
+  },
+  {
     // NestJS dependency injection resolves constructor params from runtime class references
     // (via emitDecoratorMetadata). Rewriting those to `import type` erases the value the injector
     // needs, so the rule is scoped off here rather than working around it per-file.
