@@ -9,10 +9,21 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "EventRide shares your location with ops only while you are on a trip." }]
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "EventRide shares your location with ops only while you are on a trip."
+        }
+      ]
     ],
-    "extra": { "apiBaseUrl": "http://localhost:3000" },
-    "ios": { "supportsTablet": true },
-    "android": { "package": "com.eventride.portal" }
+    "extra": {
+      "apiBaseUrl": "https://eventride-api-production.up.railway.app"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.eventride.portal"
+    }
   }
 }

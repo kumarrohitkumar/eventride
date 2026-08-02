@@ -50,7 +50,7 @@ jobs:
             done
             echo "apps pointed at $API_BASE_URL"
           else
-            echo "::warning::API_BASE_URL is not set — the previews will render but cannot reach an API"
+            echo "API_BASE_URL variable not set — using the value committed in app.json"
           fi
 
       # --base-url matters: Pages serves from /<repo>/, and without it every asset 404s.
