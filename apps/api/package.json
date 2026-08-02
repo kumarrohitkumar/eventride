@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "build": "nest build",
-    "start": "node dist/main.js",
+    "build": "node build.mjs",
+    "start": "node dist/main.cjs",
     "typecheck": "tsc --noEmit",
     "prisma": "prisma",
     "seed": "tsx prisma/seed.ts",
@@ -39,6 +39,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
     "@types/multer": "^2.2.0",
+    "esbuild": "^0.24.0",
     "prisma": "^6.1.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2"
