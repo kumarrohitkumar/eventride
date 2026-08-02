@@ -101,17 +101,23 @@ export function TileMap({
           )),
         )}
 
-        {markers.map((marker) => {
-          const position = toScreen(marker.lat, marker.lng)
-          const style = MARKER_STYLE[marker.kind]
+        {clusterMarkers(markers, toScreen).map((cluster) => {
+          const style = MARKER_STYLE[cluster.kind]
           return (
             <View
-              key={`${marker.kind}-${marker.label}-${marker.lat}`}
-              style={[styles.marker, { left: position.left - 14, top: position.top - 14 }]}
+              key={cluster.key}
+              style={[styles.marker, { left: cluster.left - 14, top: cluster.top - 14 }]}
             >
               <View style={[styles.pin, { borderColor: style.colour }]}>
                 <Text style={styles.pinGlyph}>{style.glyph}</Text>
               </View>
+              {/* Without this a staged fleet renders 39 pins on one pixel and ops sees "a vehicle"
+                  instead of "39 vehicles waiting at the terminal". */}
+              {cluster.count > 1 ? (
+                <View style={[styles.badge, { backgroundColor: style.colour }]}>
+                  <Text style={styles.badgeText}>{cluster.count > 99 ? '99+' : cluster.count}</Text>
+                </View>
+              ) : null}
             </View>
           )
         })}
@@ -119,6 +125,43 @@ export function TileMap({
       <Text style={styles.attribution}>© OpenStreetMap</Text>
     </View>
   )
+}
+
+/**
+ * Groups markers that would land within a pin's width of each other into one pin with a count.
+ *
+ * Vehicles staged at the same terminal share coordinates almost exactly, so without clustering the
+ * fleet map is a single pin sitting on 38 invisible ones.
+ */
+interface Cluster {
+  key: string
+  kind: MapMarker['kind']
+  left: number
+  top: number
+  count: number
+}
+
+const CLUSTER_RADIUS_PX = 22
+
+function clusterMarkers(
+  markers: readonly MapMarker[],
+  toScreen: (lat: number, lng: number) => { left: number; top: number },
+): Cluster[] {
+  const clusters: Cluster[] = []
+
+  for (const marker of markers) {
+    const { left, top } = toScreen(marker.lat, marker.lng)
+    // Same kind only: a driver pin must never be absorbed into a pickup pin.
+    const existing = clusters.find(
+      (c) =>
+        c.kind === marker.kind &&
+        Math.abs(c.left - left) < CLUSTER_RADIUS_PX &&
+        Math.abs(c.top - top) < CLUSTER_RADIUS_PX,
+    )
+    if (existing) existing.count += 1
+    else clusters.push({ key: `${marker.kind}-${left.toFixed(0)}-${top.toFixed(0)}`, kind: marker.kind, left, top, count: 1 })
+  }
+  return clusters
 }
 
 const styles = StyleSheet.create({
@@ -141,6 +184,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pinGlyph: { fontSize: 14 },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   attribution: {
     position: 'absolute',
     right: 4,

@@ -173,9 +173,11 @@ Verification differs by layer, and it is worth being precise about which is whic
   cost control. 274 tests, including property tests over randomised fleets.
 - **🟢 Verified live** — auth, the full trip lifecycle, RBAC enforcement, the audit trail, INV-5 at
   the database level, `/health` `/ready` `/metrics`. Driven with curl against real MySQL and Redis.
-- **🔵 Verified by typecheck + bundle** — the app screens. Both apps compile and bundle in CI, but
-  they have **not** been exercised on a device or simulator, so the visual result and native
-  behaviours (push delivery, background location, permission prompts) are unproven by me.
+- **🔵 Verified by rendering** — the app screens now compile, bundle, AND render: both apps were
+  loaded in a headless browser and driven through their real flows against the live API, with
+  screenshots inspected. What remains unproven is anything **native-only** — push delivery to a
+  handset, background location, and OS permission dialogs — since no device or simulator is
+  available (only Xcode Command Line Tools are installed, so there is no iOS Simulator).
 - **🟡 Verified indirectly** — three items: the upcoming-trips timeline (data exposed, no dedicated
   screen), a live traffic-spike rehearsal (needs a billed Google key), and multi-instance scale-out
   (designed with a Redis lock and adapter, not load-tested).

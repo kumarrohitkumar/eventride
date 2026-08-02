@@ -1,6 +1,6 @@
 import React from 'react'
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { router } from 'expo-router'
+import { Redirect, router } from 'expo-router'
 import { ApiClientError, type GuestCurrent } from '@eventride/api-client'
 import {
   Body,
@@ -38,10 +38,6 @@ export default function HomeScreen(): React.JSX.Element {
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [offline, setOffline] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!session) router.replace('/login')
-  }, [session])
 
   const load = React.useCallback(async () => {
     try {
@@ -88,6 +84,10 @@ export default function HomeScreen(): React.JSX.Element {
       setBusy(false)
     }
   }
+
+  // Declarative redirect, NOT router.replace in an effect: an imperative navigation on first render
+  // runs before expo-router has mounted its navigator and the app renders a blank screen.
+  if (!session) return <Redirect href="/login" />
 
   if (loading) return <Loading label="Loading your ride…" />
 

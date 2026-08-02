@@ -384,6 +384,19 @@ export class TripService {
     reason: NonNullable<RequestRecord['unmatchedReason']>,
   ): Promise<void> {
     const request = await this.mustFindRequest(requestId)
+
+    // A request that is ALREADY unmatched and still cannot be served is not a state transition —
+    // it is the same state with a possibly-different reason. Asserting a transition here made every
+    // round log an error and, worse, left the reason stale: ops would keep seeing the first
+    // explanation ("all drivers busy") long after the real one had become "no capacity".
+    if (request.state === 'UNMATCHED') {
+      if (request.unmatchedReason !== reason) {
+        await this.repos.requests.update(requestId, { unmatchedReason: reason })
+        await this.audit('request', requestId, 'UNMATCHED', 'UNMATCHED', 'ENGINE', `reason now: ${reason}`)
+      }
+      return
+    }
+
     assertRequestTransition(request.state, 'UNMATCHED')
     await this.repos.requests.update(requestId, { state: 'UNMATCHED', unmatchedReason: reason })
     await this.audit('request', requestId, request.state, 'UNMATCHED', 'ENGINE', reason)

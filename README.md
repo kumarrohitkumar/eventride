@@ -231,6 +231,8 @@ Driven with curl against the running API, real MySQL and real Redis:
 | Batch preview is non-committing | two previews proposed 8 trips each with the trip count frozen at 12; publish then created exactly 8 |
 | CSV all-or-nothing | a file with one bad row imported **nothing**; `"Beta, Bob"` (quoted comma) parsed correctly |
 | Automatic dispatch | 12 queued guests were assigned by the background tick with no human action |
+| **Guest app, rendered and driven** | Headless browser: sign in → "I have arrived" → "Finding your ride" → dispatch picked Driver 2 / KA01B1001 → driver accepted → the guest screen updated **without a reload** to show driver, vehicle, ETA and a live OSM map |
+| **Admin portal, rendered** | Signed in, dashboard rendered with demand-vs-supply, guest/fleet counters and the fleet map |
 
 ## Known limitations
 
@@ -240,7 +242,8 @@ no live flight/train status ingestion · driver location streams only while a tr
 with the app foregrounded · no offline write queue (screens degrade to cached reads) · the in-app map
 is a static tile view with no gestures, chosen so the apps need no native map SDK or API key ·
 `active_driver_id` is a hand-written generated column because Prisma cannot express one ·
-the apps have been verified by typecheck and bundle, not by on-device screenshots · push
+the apps have been rendered and driven in a headless browser (see below), but never on a physical
+device, so native-only behaviour is unproven · push
 registration and sending are implemented and tested (registration verified live for all three roles),
 but actual delivery to a physical device is unverified · no load test against the real API, and
 multi-instance scale-out is designed for but untested.

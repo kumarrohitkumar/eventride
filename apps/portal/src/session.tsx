@@ -12,21 +12,42 @@ import { EventRideClient, type Session, type TokenStore } from '@eventride/api-c
 
 const TOKEN_KEY = 'eventride.portal.token'
 
+/**
+ * Keychain / Keystore via expo-secure-store, with an in-memory fallback.
+ *
+ * The fallback is not cosmetic: SecureStore throws outright on web, and can fail on a device with a
+ * locked or unavailable keystore. Without it, a storage failure propagated out of `verifyOtp` and
+ * the user saw "Sign in failed" even though the server had issued a perfectly good token — losing
+ * persistence is acceptable, losing the session is not.
+ */
+let memoryToken: string | null = null
+
 const secureTokenStore: TokenStore = {
   get: async () => {
     try {
-      return await SecureStore.getItemAsync(TOKEN_KEY)
+      return (await SecureStore.getItemAsync(TOKEN_KEY)) ?? memoryToken
     } catch {
-      return null
+      return memoryToken
     }
   },
   set: async (token) => {
-    await SecureStore.setItemAsync(TOKEN_KEY, token)
+    memoryToken = token
+    try {
+      await SecureStore.setItemAsync(TOKEN_KEY, token)
+    } catch {
+      // Session still works for this launch; it just will not survive a restart.
+    }
   },
   clear: async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY)
+    memoryToken = null
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY)
+    } catch {
+      // Nothing to clean up if the store was never writable.
+    }
   },
 }
+
 
 // Base URL comes from app config, never hardcoded in a screen.
 const baseUrl =

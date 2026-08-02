@@ -1,5 +1,5 @@
 import React from 'react'
-import { Stack, router } from 'expo-router'
+import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { Loading, theme, usePushRegistration } from '@eventride/ui'
@@ -17,17 +17,8 @@ function RoleGate({ children }: { children: React.ReactNode }): React.JSX.Elemen
   // Drivers need the offer push (60-second window); admins need critical alerts.
   usePushRegistration(client, Boolean(session), { androidChannelName: 'Dispatch & alerts' })
 
-  React.useEffect(() => {
-    if (restoring) return
-    if (!session) {
-      router.replace('/login')
-      return
-    }
-    // Land each role on its own home rather than showing a chooser nobody needs.
-    if (session.role === 'DRIVER') router.replace('/driver')
-    else if (session.role === 'ADMIN') router.replace('/admin')
-  }, [session, restoring])
-
+  // Role routing lives in app/index.tsx as a <Redirect>, not here: navigating from the layout runs
+  // before the navigator exists and leaves the user staring at a blank screen.
   if (restoring) return <Loading label="Restoring your session…" />
   return <>{children}</>
 }
@@ -45,6 +36,7 @@ export default function RootLayout(): React.JSX.Element {
               contentStyle: { backgroundColor: theme.colour.background },
             }}
           >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="driver/index" options={{ title: 'My Trip' }} />
             <Stack.Screen name="admin/index" options={{ title: 'Operations' }} />
