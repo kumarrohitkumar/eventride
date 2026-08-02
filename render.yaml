@@ -1,0 +1,33 @@
+# Render blueprint — the free-tier path.
+#
+# NOTE: Render offers managed POSTGRES only, and this schema is MySQL-specific: INV-5 is enforced by
+# a MySQL generated column and the audit sequence uses MySQL AUTO_INCREMENT syntax. So MySQL must
+# come from elsewhere (Aiven's free plan works) and its URL goes in DATABASE_URL below.
+services:
+  - type: web
+    name: eventride-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: ROUTING_PROVIDER
+        value: mock
+      - key: DEV_OTP_ENABLED
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      # Set these two by hand in the Render dashboard:
+      #   DATABASE_URL  — external MySQL, and it MUST end with ?timezone=UTC
+      #   REDIS_URL     — e.g. an Upstash free database
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
